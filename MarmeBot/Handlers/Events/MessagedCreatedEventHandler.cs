@@ -3,20 +3,16 @@ using System.Text.RegularExpressions;
 using DSharpPlus;
 using DSharpPlus.EventArgs;
 using MarmeBot.Services;
+using MarmeBot.Models.Database;
 
 namespace MarmeBot.Handlers.Events;
 
-public class MessagedCreatedEventHandler
+public class MessageCreatedEventHandler
 {
-    private readonly List<string> _sanitizedBannedWords;
+    private readonly IBannedWordService _bannedWordService;
 
-    public MessagedCreatedEventHandler(IBannedWordService bannedWordService)
-    {
-        // Initialize and sanitize banned words
-        _sanitizedBannedWords = bannedWordService.GetAllBannedWords()
-            .Select(w => string.Concat(w.Where(c => !char.IsWhiteSpace(c))).ToUpperInvariant())
-            .ToList();
-    }
+    public MessageCreatedEventHandler(IBannedWordService bannedWordService) =>
+        _bannedWordService = bannedWordService;
 
     public async Task OnMessageCreated(DiscordClient sender, MessageCreateEventArgs e)
     {
@@ -27,14 +23,24 @@ public class MessagedCreatedEventHandler
 
         var messageContent = e.Message.Content;
 
-        var isBannedWordContained = CheckForBannedWords(messageContent, _sanitizedBannedWords, out var bannedWord);
+        var bannedWords = await _bannedWordService.GetBannedWordsByGuildAsync(e.Guild.Id.ToString());
+
+        var isBannedWordContained = CheckForBannedWords(messageContent, bannedWords, out var bannedWord);
 
         if (isBannedWordContained)
         {
-            await e.Message.DeleteAsync();
+            try
+            {
+                await e.Message.DeleteAsync();
+            }
+            catch (Exception exception)
+            {
+                Console.WriteLine(exception);
+            }
 
-            // Build the regex pattern to match the banned word with optional whitespaces between letters
-            var pattern = $@"\b{string.Join(@"\s*", Regex.Escape(bannedWord).ToCharArray())}\b";
+            var sanitizedBanned = string.Concat(bannedWord.Where(c => !char.IsWhiteSpace(c))).ToUpperInvariant();
+            var pattern = $@"\b{string.Join(@"\s*", Regex.Escape(sanitizedBanned).ToCharArray())}\b";
+
             var encapsulatedMessage = Regex.Replace(
                 messageContent,
                 pattern,
@@ -46,14 +52,14 @@ public class MessagedCreatedEventHandler
         }
     }
 
-    private static bool CheckForBannedWords(string messageContent, IEnumerable<string> sanitizedBannedWords, out string bannedWord)
+    private static bool CheckForBannedWords(string messageContent,
+        IEnumerable<BannedWord> bannedWords, out string bannedWord)
     {
         var messageSpan = messageContent.AsSpan();
 
-        // Remove whitespaces and convert to uppercase
+        // Remove whitespaces and convert message content to uppercase
         var contentBuffer = ArrayPool<char>.Shared.Rent(messageSpan.Length);
         var sanitizedContentLength = 0;
-
         foreach (var c in messageSpan)
         {
             if (!char.IsWhiteSpace(c))
@@ -64,24 +70,21 @@ public class MessagedCreatedEventHandler
 
         var sanitizedContentSpan = new ReadOnlySpan<char>(contentBuffer, 0, sanitizedContentLength);
 
-        foreach (var sanitizedWord in sanitizedBannedWords)
+        // Process each banned word
+        foreach (var bw in bannedWords)
         {
-            var sanitizedWordSpan = sanitizedWord.AsSpan();
-
-            if (sanitizedContentSpan.IndexOf(sanitizedWordSpan) < 0)
+            var sanitizedBw = string.Concat(bw.Word.Where(c => !char.IsWhiteSpace(c))).ToUpperInvariant();
+            if (sanitizedContentSpan.IndexOf(sanitizedBw.AsSpan()) < 0)
             {
                 continue;
             }
-            
-            bannedWord = sanitizedWord;
 
+            bannedWord = bw.Word; // return original banned word, as written in database
             ArrayPool<char>.Shared.Return(contentBuffer);
-
             return true;
         }
 
         ArrayPool<char>.Shared.Return(contentBuffer);
-
         bannedWord = string.Empty;
         return false;
     }

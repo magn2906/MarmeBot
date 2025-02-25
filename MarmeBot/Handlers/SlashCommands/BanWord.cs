@@ -20,7 +20,8 @@ public class BanWord : ApplicationCommandModule
     {
         var wordToBan = new BannedWord
         {
-            Word = word
+            Word = word,
+            GuildId = ctx.Guild.Id.ToString()
         };
         await _bannedWordService.AddBannedWordAsync(wordToBan);
         await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder

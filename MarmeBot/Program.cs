@@ -21,14 +21,14 @@ services.AddLogging(configure =>
 });
 
 services.AddSingleton<IBannedWordService, BannedWordService>();
-services.AddSingleton<MessagedCreatedEventHandler>();
+services.AddSingleton<MessageCreatedEventHandler>();
 
 #pragma warning disable ASP0000
 var builtServices = services.BuildServiceProvider();
 #pragma warning restore ASP0000
 
 // Event handlers
-var messagedCreatedEventHandler = builtServices.GetRequiredService<MessagedCreatedEventHandler>();
+var messagedCreatedEventHandler = builtServices.GetRequiredService<MessageCreatedEventHandler>();
 discord.MessageCreated += messagedCreatedEventHandler.OnMessageCreated;
 
 // Slash commands

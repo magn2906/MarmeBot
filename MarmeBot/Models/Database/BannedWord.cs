@@ -8,5 +8,5 @@ public class BannedWord
     [BsonId] 
     public ObjectId  Id { get; set; } = ObjectId.GenerateNewId();
     public required string Word { get; set; }
-    
+    public required string GuildId { get; set; }
 }

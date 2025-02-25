@@ -17,7 +17,7 @@ public class ListBannedWords : ApplicationCommandModule
     [SlashCommand("list-banned-words", "Lists all banned words")]
     public async Task ListBannedWordsCommand(InteractionContext ctx)
     {
-        var bannedWords = _bannedWordService.GetAllBannedWords();
+        var bannedWords = _bannedWordService.GetBannedWordsByGuildAsync(ctx.Guild.Id.ToString());
         await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder
         {
             Content = "Banned words: \n" + string.Join("\n", bannedWords)

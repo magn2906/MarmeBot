@@ -17,7 +17,7 @@ public class UnbanWord : ApplicationCommandModule
     [SlashCommand("unban-word", "Unbans a word from being said in the server")]
     public async Task UnbanWordCommand(InteractionContext ctx, [Option("word", "Word to unban")]string word)
     {
-        await _bannedWordService.RemoveBannedWordAsync(word);
+        await _bannedWordService.RemoveBannedWordAsync(word, ctx.Guild.Id.ToString());
         await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder
         {
             Content = $"Unbanned word \"{word}\""
